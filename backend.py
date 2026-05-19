@@ -15,6 +15,9 @@ import pdfplumber
 import requests
 from bs4 import BeautifulSoup
 
+from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
+
+
 # --- FORCE THE AGENT TO USE YOUR OLLAMA SETUP ---
 # os.environ["OLLAMA_MODEL"] = "qwen2.5-coder:14b"
 # os.environ["OLLAMA_EMBED_MODEL"] = "qwen3-embedding:4b"
@@ -71,7 +74,7 @@ load_dotenv()
 # )
 
 
-
+nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 
 
 # Get your token
@@ -81,43 +84,86 @@ hf_token = os.environ.get("HF_TOKEN")
 # 1. Base LLM (Gemma 4 E4B)
 # HuggingFaceEndpoint connects to the cloud API, ChatHuggingFace formats it for LangChain
 # ---------------------------------------------------------------------------
-llm_endpoint = HuggingFaceEndpoint(
-    model=os.environ.get("HF_MODEL", "google/gemma-4-e4b-it"),
-    # repo_id=os.environ.get("HF_MODEL", "google/gemma-4-e4b-it"),
-    task="text-generation",
-    max_new_tokens=1024,   # How many tokens it can generate per response
-    temperature=0.7,
-    huggingfacehub_api_token=hf_token
-)
+# llm_endpoint = HuggingFaceEndpoint(
+#     model=os.environ.get("HF_MODEL", "google/gemma-4-e4b-it"),
+#     # repo_id=os.environ.get("HF_MODEL", "google/gemma-4-e4b-it"),
+#     task="text-generation",
+#     max_new_tokens=1024,   # How many tokens it can generate per response
+#     temperature=0.7,
+#     huggingfacehub_api_token=hf_token
+# )
 
-llm = ChatHuggingFace(llm=llm_endpoint)
+# llm = ChatHuggingFace(llm=llm_endpoint)
 
 # ---------------------------------------------------------------------------
 # 2. Vision LLM Initialization
 # Gemma 4 E4B handles audio/text, but for Images (OCR), you'll want a Vision model
 # like Idefics2 or LLaVA hosted on Hugging Face.
 # ---------------------------------------------------------------------------
-vision_endpoint = HuggingFaceEndpoint(
-    model=os.environ.get("HF_VISION", "deepseek-ai/DeepSeek-V3-0324"),
-    # repo_id=os.environ.get("HF_VISION", "Qwen/Qwen2.5-VL-7B-Instruct"),
-    task="text-generation",
-    max_new_tokens=512,
-    temperature=0.01, # 0.01 is better than 0.0 for HF API to prevent division-by-zero errors
-    huggingfacehub_api_token=hf_token
+# vision_endpoint = HuggingFaceEndpoint(
+#     model=os.environ.get("HF_VISION", "deepseek-ai/DeepSeek-V3-0324"),
+#     # repo_id=os.environ.get("HF_VISION", "Qwen/Qwen2.5-VL-7B-Instruct"),
+#     task="text-generation",
+#     max_new_tokens=512,
+#     temperature=0.01, # 0.01 is better than 0.0 for HF API to prevent division-by-zero errors
+#     huggingfacehub_api_token=hf_token
+# )
+
+# llm_vision = ChatHuggingFace(llm=vision_endpoint)
+
+
+
+# -------------------------------------------------------------------
+# MAIN LLM
+# -------------------------------------------------------------------
+llm = ChatNVIDIA(
+    model=os.environ.get(
+        "NVIDIA_MODEL",
+        "qwen/qwen3-coder-480b-a35b-instruct"
+    ),
+    api_key=nvidia_api_key,
+    temperature=0.7,
+    top_p=0.8,
+    max_tokens=4096,
 )
 
-llm_vision = ChatHuggingFace(llm=vision_endpoint)
+# -------------------------------------------------------------------
+# VISION MODEL
+# -------------------------------------------------------------------
+llm_vision = ChatNVIDIA(
+    model=os.environ.get(
+        "NVIDIA_VISION_MODEL",
+        "meta/llama-3.2-90b-vision-instruct"
+    ),
+    api_key=nvidia_api_key,
+    temperature=0.01,
+    max_tokens=2048,
+)
+
+llm_accuracy = llm_vision
+
+# -------------------------------------------------------------------
+# EMBEDDINGS
+# -------------------------------------------------------------------
+embeddings = NVIDIAEmbeddings(
+    model=os.environ.get(
+        "NVIDIA_EMBED_MODEL",
+        "nvidia/nv-embedqa-e5-v5"
+    ),
+    api_key=nvidia_api_key,
+)
+
 llm_accuracy = llm_vision
 
 # ---------------------------------------------------------------------------
 # 3. Embeddings Initialization
 # Replaces OllamaEmbeddings. Connects to HF's feature-extraction API.
 # ---------------------------------------------------------------------------
-embeddings = HuggingFaceEndpointEmbeddings(
-    model=os.environ.get("HF_EMBED_MODEL", "BAAI/bge-m3"),
-    task="feature-extraction",
-    huggingfacehub_api_token=hf_token
-)
+# embeddings = HuggingFaceEndpointEmbeddings(
+#     model=os.environ.get("HF_EMBED_MODEL", "BAAI/bge-m3"),
+#     task="feature-extraction",
+#     huggingfacehub_api_token=hf_token
+# )
 
 
 # ---------------------------------------------------------------------------

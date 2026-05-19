@@ -17,3 +17,4 @@ dotenv
 pypdf
 langchain-huggingface 
 huggingface-hub
+langchain-nvidia-ai-endpoints
